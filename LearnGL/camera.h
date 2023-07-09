@@ -35,7 +35,7 @@ public:
 public:
 	Camera(glm::vec3 pos = glm::vec3(0.0f, 0.0f, 5.0f))
 	{
-		speed = 3.0;
+		speed = 3.0f;
 		position = pos;
 		direction = glm::vec3(
 			cos(verticalAngle) * sin(horizontalAngle),
