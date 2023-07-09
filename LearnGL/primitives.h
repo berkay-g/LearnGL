@@ -951,7 +951,6 @@ public:
 		: instanceCount(count)
 	{
 		loadObj(objPath);
-		std::cout << "yes";
 
 		// Create vertex array object
 		glGenVertexArrays(1, &VAO);
