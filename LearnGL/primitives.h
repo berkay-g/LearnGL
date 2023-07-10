@@ -1294,3 +1294,340 @@ private:
 		}
 	}
 };
+
+class Model
+{
+private:
+	unsigned int VAO;
+	unsigned int VBO;
+	unsigned int EBO;
+	unsigned int vertexCount;
+	unsigned int indexCount;
+	std::vector<glm::mat4> modelMatrices;
+	unsigned int instanceVBO;
+	std::vector<Vertex> vertices;
+	std::vector<unsigned int> indices;
+	int updateCall;
+public:
+	Model(const char* objPath, std::vector<glm::mat4>& modelMatrices)
+		: modelMatrices(modelMatrices)
+	{
+		loadObj(objPath);
+
+		// Create vertex array object
+		glGenVertexArrays(1, &VAO);
+		glBindVertexArray(VAO);
+
+		// Create vertex buffer object
+		glGenBuffers(1, &VBO);
+		glBindBuffer(GL_ARRAY_BUFFER, VBO);
+		glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STATIC_DRAW);
+
+		// Create element buffer object
+		glGenBuffers(1, &EBO);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
+
+		// Set vertex attribute pointers
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
+
+		glEnableVertexAttribArray(1);
+		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, texCoord));
+
+		glEnableVertexAttribArray(2);
+		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
+
+		// Create instance matrix buffer object
+		glGenBuffers(1, &instanceVBO);
+		glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+		glBufferData(GL_ARRAY_BUFFER, modelMatrices.size() * sizeof(glm::mat4), &modelMatrices[0], GL_DYNAMIC_DRAW);
+		updateCall = 1;
+
+		// Set up instance matrix attribute
+		for (unsigned int i = 0; i < 4; ++i)
+		{
+			glEnableVertexAttribArray(3 + i);
+			glVertexAttribPointer(3 + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(sizeof(glm::vec4) * i));
+			glVertexAttribDivisor(3 + i, 1);
+		}
+
+		// Unbind VAO
+		glBindVertexArray(0);
+
+		// Store the number of vertices and indices
+		vertexCount = static_cast<int>(vertices.size());
+		indexCount = static_cast<int>(indices.size());
+	}
+
+	Model(std::string& objData, std::vector<glm::mat4>& modelMatrices)
+		: modelMatrices(modelMatrices)
+	{
+		loadObjStr(objData);
+
+		// Create vertex array object
+		glGenVertexArrays(1, &VAO);
+		glBindVertexArray(VAO);
+
+		// Create vertex buffer object
+		glGenBuffers(1, &VBO);
+		glBindBuffer(GL_ARRAY_BUFFER, VBO);
+		glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STATIC_DRAW);
+
+		// Create element buffer object
+		glGenBuffers(1, &EBO);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
+
+		// Set vertex attribute pointers
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
+
+		glEnableVertexAttribArray(1);
+		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, texCoord));
+
+		glEnableVertexAttribArray(2);
+		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
+
+		// Create instance matrix buffer object
+		glGenBuffers(1, &instanceVBO);
+		glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+		glBufferData(GL_ARRAY_BUFFER, modelMatrices.size() * sizeof(glm::mat4), &modelMatrices[0], GL_DYNAMIC_DRAW);
+		updateCall = 1;
+
+		// Set up instance matrix attribute
+		for (unsigned int i = 0; i < 4; ++i)
+		{
+			glEnableVertexAttribArray(3 + i);
+			glVertexAttribPointer(3 + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(sizeof(glm::vec4) * i));
+			glVertexAttribDivisor(3 + i, 1);
+		}
+
+		// Unbind VAO
+		glBindVertexArray(0);
+
+		// Store the number of vertices and indices
+		vertexCount = static_cast<int>(vertices.size());
+		indexCount = static_cast<int>(indices.size());
+	}
+
+	~Model()
+	{
+		glDeleteVertexArrays(1, &VAO);
+		glDeleteBuffers(1, &VBO);
+		glDeleteBuffers(1, &EBO);
+	}
+
+	void updateMatrices()
+	{
+		updateCall++;
+		glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+		glBufferData(GL_ARRAY_BUFFER, modelMatrices.size() * sizeof(glm::mat4), &modelMatrices[0], GL_STATIC_DRAW);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+	}
+
+	int getMatricesSize()
+	{
+		return modelMatrices.size();
+	}
+
+	void add(const glm::vec3& position = glm::vec3(0.f), const glm::vec3& scale = glm::vec3(0.f))
+	{
+		glm::mat4 model = glm::translate(glm::mat4(1.f), position);
+		model = glm::scale(model, scale);
+
+		modelMatrices.push_back(model);
+		updateMatrices();
+	}
+
+	int updateCallAmount()
+	{
+		return updateCall;
+	}
+
+	void add(glm::mat4& model)
+	{
+		modelMatrices.push_back(model);
+		updateMatrices();
+	}
+
+	void remove(int index)
+	{
+		if (index >= 0 && index < modelMatrices.size())
+		{
+			modelMatrices.erase(modelMatrices.begin() + index);
+		}
+	}
+
+	void draw()
+	{
+		if (modelMatrices.size() > 0)
+		{
+			glBindVertexArray(VAO);
+			glDrawElementsInstanced(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0, modelMatrices.size());
+			glBindVertexArray(0);
+		}
+	}
+
+	glm::mat4* operator[](int i)
+	{
+		if (modelMatrices.size() > 0)
+			return &modelMatrices[i];
+		else
+			return nullptr;
+	}
+
+	bool validIndex(int index)
+	{
+		if (index >= 0 && index < modelMatrices.size())
+			return true;
+		return false;
+	}
+
+	glm::vec3 getPosition(int i)
+	{
+		if (validIndex(i))
+			return getPositionFromModelMatrix(modelMatrices[i]);
+		return { 0.f, 0.f, 0.f };
+	}
+
+	void setPosition(unsigned int index, const glm::vec3& position)
+	{
+		if (index >= 0 && index < modelMatrices.size())
+		{
+			std::cerr << "Invalid index: " << index << std::endl;
+			return;
+		}
+
+		modelMatrices[index] = glm::translate(glm::mat4(1.0f), position);
+	}
+
+private:
+	void loadObj(const char* objPath)
+	{
+		std::ifstream file(objPath);
+		std::string line;
+
+		std::vector<glm::vec3> positions;
+		std::vector<glm::vec2> texCoords;
+		std::vector<glm::vec3> normals;
+
+		while (std::getline(file, line))
+		{
+			std::istringstream iss(line);
+			std::string type;
+			iss >> type;
+
+			if (type == "v")
+			{
+				glm::vec3 position;
+				iss >> position.x >> position.y >> position.z;
+				positions.push_back(position);
+			}
+			else if (type == "vt")
+			{
+				glm::vec2 texCoord;
+				iss >> texCoord.x >> texCoord.y;
+				texCoords.push_back(texCoord);
+			}
+			else if (type == "vn")
+			{
+				glm::vec3 normal;
+				iss >> normal.x >> normal.y >> normal.z;
+				normals.push_back(normal);
+			}
+			else if (type == "f")
+			{
+				for (int i = 0; i < 3; ++i)
+				{
+					std::string vertexData;
+					iss >> vertexData;
+					std::istringstream vdiss(vertexData);
+
+					std::string positionIndex, texCoordIndex, normalIndex;
+					std::getline(vdiss, positionIndex, '/');
+					std::getline(vdiss, texCoordIndex, '/');
+					std::getline(vdiss, normalIndex, '/');
+
+					unsigned int posIndex = std::stoi(positionIndex) - 1;
+					unsigned int texIndex = std::stoi(texCoordIndex) - 1;
+					unsigned int normIndex = std::stoi(normalIndex) - 1;
+
+					Vertex vertex;
+					vertex.position = positions[posIndex];
+					vertex.texCoord = texCoords[texIndex];
+					vertex.normal = normals[normIndex];
+
+					vertices.push_back(vertex);
+					indices.push_back(static_cast<unsigned int>(indices.size()));
+				}
+			}
+		}
+	}
+
+	void loadObjStr(std::string& objData)
+	{
+		std::istringstream file(objData);
+		std::string line;
+
+		std::vector<glm::vec3> positions;
+		std::vector<glm::vec2> texCoords;
+		std::vector<glm::vec3> normals;
+
+		while (std::getline(file, line))
+		{
+			std::istringstream iss(line);
+			std::string type;
+			iss >> type;
+
+			if (type == "v")
+			{
+				glm::vec3 position;
+				iss >> position.x >> position.y >> position.z;
+				positions.push_back(position);
+			}
+			else if (type == "vt")
+			{
+				glm::vec2 texCoord;
+				iss >> texCoord.x >> texCoord.y;
+				texCoords.push_back(texCoord);
+			}
+			else if (type == "vn")
+			{
+				glm::vec3 normal;
+				iss >> normal.x >> normal.y >> normal.z;
+				normals.push_back(normal);
+			}
+			else if (type == "f")
+			{
+				for (int i = 0; i < 3; ++i)
+				{
+					std::string vertexData;
+					iss >> vertexData;
+					std::istringstream vdiss(vertexData);
+
+					std::string positionIndex, texCoordIndex, normalIndex;
+					std::getline(vdiss, positionIndex, '/');
+					std::getline(vdiss, texCoordIndex, '/');
+					std::getline(vdiss, normalIndex, '/');
+
+					unsigned int posIndex = std::stoi(positionIndex) - 1;
+					unsigned int texIndex = std::stoi(texCoordIndex) - 1;
+					unsigned int normIndex = std::stoi(normalIndex) - 1;
+
+					Vertex vertex;
+					vertex.position = positions[posIndex];
+					vertex.texCoord = texCoords[texIndex];
+					vertex.normal = normals[normIndex];
+
+					vertices.push_back(vertex);
+					indices.push_back(static_cast<unsigned int>(indices.size()));
+				}
+			}
+		}
+	}
+
+	glm::vec3 getPositionFromModelMatrix(const glm::mat4& modelMatrix) {
+		return glm::vec3(modelMatrix[3][0], modelMatrix[3][1], modelMatrix[3][2]);
+	}
+};
